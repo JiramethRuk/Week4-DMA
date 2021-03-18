@@ -46,10 +46,12 @@ DMA_HandleTypeDef hdma_adc1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-uint32_t ADCData[4] = {0};
-uint32_t PressTime = 0;
-int LED = 0;
-uint32_t Time1 = 0;
+uint32_t ADCData[4]={0};
+uint32_t TimeDelay = 0;
+uint32_t TimeUpdate = 0;
+uint32_t TimeGame = 0;
+int Event = 0;
+int Check = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -59,7 +61,7 @@ static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
-
+void Game();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -99,7 +101,8 @@ int main(void)
   MX_USART2_UART_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
-HAL_ADC_Start_DMA(&hadc1 , ADCData , 4);
+  HAL_ADC_Start_DMA(&hadc1, ADCData, 4);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, SET);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -109,6 +112,8 @@ HAL_ADC_Start_DMA(&hadc1 , ADCData , 4);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  Game();
+
   }
   /* USER CODE END 3 */
 }
@@ -196,7 +201,7 @@ static void MX_ADC1_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_0;
   sConfig.Rank = 1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -300,7 +305,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
@@ -320,60 +325,43 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-//	if(GPIO_Pin == GPIO_PIN_13 && HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13)== GPIO_PIN_SET)
-//	{
-//		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
-//		if (HAL_GetTick() - PressTime >= 10000)
-//		{
-//			PressTime = HAL_GetTick();
-//			HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-//		}
-//	}
-//	else
-//	{
-//		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
-//		PressTime = 0;
-//	}
-	switch(LED)
+	if(GPIO_Pin == GPIO_PIN_13)
 	{
-		case 0:
+		if(Event == 0)
 		{
-//			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-			if(GPIO_Pin == GPIO_PIN_13)
-			{
-				LED = 1;
-				HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-			}
-			break;
-
+			HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+			TimeDelay = 5000;
+			TimeUpdate = HAL_GetTick();
+			Event = 1;
+			TimeGame = 0;
 		}
-		case 1:
-		{
-			Time1 = HAL_GetTick();
-			if(HAL_GetTick() - Time1 >= 5000)
-			{
-				PressTime = HAL_GetTick();
-				HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-				LED = 0;
-			}
-			break;
-		}
-//		case 2:
-//		{
-//			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-//			PressTime = 0;
-//			LED = 0;
-//			break;
-//		}
-		default:
-		{
-			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-			PressTime = 0;
-			break;
-		}
-
 	}
 }
+
+void Game()
+{
+	if(Event == 1)
+		  {
+			  Check = 1;
+			  if(HAL_GetTick() - TimeUpdate >= 1000+((22695477*ADCData[0])+ADCData[1])%10000)
+			  {
+				  TimeUpdate = HAL_GetTick();
+				  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, SET);
+				  Event = 2;
+			  }
+		  }
+		  else if(Event == 2)
+		  {
+			  if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == 1)
+			  {
+			  Check = 2;
+			  TimeGame = HAL_GetTick() - TimeUpdate ;
+			  Event = 0;
+			  }
+		  }
+}
+
+
 /* USER CODE END 4 */
 
 /**
