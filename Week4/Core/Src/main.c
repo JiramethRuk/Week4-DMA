@@ -47,9 +47,9 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 uint32_t ADCData[4]={0};
-uint32_t TimeDelay = 0;
 uint32_t TimeUpdate = 0;
 uint32_t TimeGame = 0;
+uint32_t TimeRandom = 0;
 int Event = 0;
 int Check = 0;
 /* USER CODE END PV */
@@ -329,11 +329,20 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	{
 		if(Event == 0)
 		{
+			TimeRandom = 1000+((22695477*ADCData[0])+ADCData[1])%10000;
 			HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-			TimeDelay = 5000;
-			TimeUpdate = HAL_GetTick();
 			Event = 1;
 			TimeGame = 0;
+		}
+		else if(Event == 2)
+		{
+			if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == 1)
+			{
+				Check = 2;
+				TimeGame = HAL_GetTick() - TimeUpdate ;
+				HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, SET);
+				Event = 0;
+			}
 		}
 	}
 }
@@ -341,24 +350,23 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 void Game()
 {
 	if(Event == 1)
-		  {
-			  Check = 1;
-			  if(HAL_GetTick() - TimeUpdate >= 1000+((22695477*ADCData[0])+ADCData[1])%10000)
-			  {
-				  TimeUpdate = HAL_GetTick();
-				  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, SET);
-				  Event = 2;
-			  }
-		  }
-		  else if(Event == 2)
-		  {
-			  if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == 1)
-			  {
-			  Check = 2;
-			  TimeGame = HAL_GetTick() - TimeUpdate ;
-			  Event = 0;
-			  }
-		  }
+	{
+		if(HAL_GetTick() - TimeUpdate >= TimeRandom)
+		{
+			Check = 1;
+			TimeUpdate = HAL_GetTick();
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, SET);
+			Event = 2;
+		}
+		if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == 1)
+		{
+			 Check = 3;
+			 TimeGame = 0;
+			 HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, SET);
+			 Event = 0;
+		}
+
+	}
 }
 
 
